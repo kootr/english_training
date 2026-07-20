@@ -9,7 +9,7 @@
  *   A列: category   B列: english   C列: japanese
  */
 
-var SHEET_NAME = 'Sheet1';
+var SHEET_NAME = '例文集';
 
 /**
  * GitHub Pages等の別ドメインから呼ばれるため、JSONPで返します。
