@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>英語音読トレーナー</title>
+<style>
+  :root{
+    --ink:#1c2b2d;
+    --paper:#f6f3ec;
+    --card:#ffffff;
+    --line:#dfd9cc;
+    --accent:#2f7d6b;
+    --accent-soft:#e4efe9;
+    --tag-work:#2f6f8f;
+    --tag-eng:#8a5a2f;
+    --tag-daily:#7a5a8f;
+    --muted:#7d7869;
+    --hit:#2f7d6b;
+    --miss:#c25b4e;
+    --mic:#c25b4e;
+    --mic-live:#e0574a;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{height:100%;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
+    background:var(--paper);
+    color:var(--ink);
+    display:flex;
+    flex-direction:column;
+    min-height:100vh;
+    -webkit-tap-highlight-color:transparent;
+  }
+  header{
+    padding:18px 20px 12px;
+    border-bottom:1px solid var(--line);
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:8px;
+  }
+  .title{font-size:18px;font-weight:700;letter-spacing:.02em;}
+  .counter{font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums;}
+  .filters{
+    display:flex;
+    gap:8px;
+    padding:12px 20px;
+    flex-wrap:wrap;
+    border-bottom:1px solid var(--line);
+  }
+  .chip{
+    font-size:13px;
+    padding:7px 14px;
+    border:1px solid var(--line);
+    border-radius:999px;
+    background:var(--card);
+    color:var(--muted);
+    cursor:pointer;
+    user-select:none;
+  }
+  .chip.active{
+    background:var(--accent);
+    border-color:var(--accent);
+    color:#fff;
+    font-weight:600;
+  }
+  main{
+    flex:1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+  }
+  .card{
+    width:100%;
+    max-width:560px;
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:18px;
+    padding:34px 26px 28px;
+    box-shadow:0 8px 30px rgba(28,43,45,.06);
+    text-align:center;
+  }
+  .tag{
+    display:inline-block;
+    font-size:12px;
+    font-weight:600;
+    padding:4px 12px;
+    border-radius:999px;
+    margin-bottom:22px;
+    color:#fff;
+  }
+  .tag.work{background:var(--tag-work);}
+  .tag.eng{background:var(--tag-eng);}
+  .tag.daily{background:var(--tag-daily);}
+  .tag.other{background:var(--muted);}
+  .ja{
+    font-size:22px;
+    line-height:1.6;
+    font-weight:600;
+    margin-bottom:24px;
+  }
+  .answer-zone{
+    min-height:76px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-top:1px dashed var(--line);
+    padding-top:22px;
+  }
+  .en{
+    font-size:23px;
+    line-height:1.55;
+    color:var(--accent);
+    font-weight:600;
+    display:none;
+  }
+  .en.show{display:block;}
+  .hint{
+    font-size:14px;
+    color:var(--muted);
+  }
+  .heard-zone{
+    display:none;
+    margin-top:20px;
+    padding-top:18px;
+    border-top:1px dashed var(--line);
+  }
+  .heard-zone.show{display:block;}
+  .heard-label{
+    font-size:12px;
+    color:var(--muted);
+    margin-bottom:8px;
+    letter-spacing:.04em;
+  }
+  .heard-text{
+    font-size:19px;
+    line-height:1.5;
+    min-height:26px;
+    font-weight:500;
+  }
+  .heard-text .w-hit{color:var(--hit);font-weight:700;}
+  .heard-text .w-miss{color:var(--miss);text-decoration:underline dotted;}
+  .score{
+    margin-top:14px;
+    font-size:15px;
+    font-weight:700;
+  }
+  .score.ok{color:var(--hit);}
+  .score.ng{color:var(--miss);}
+  .controls{
+    padding:14px 20px 24px;
+    display:flex;
+    gap:12px;
+    max-width:600px;
+    margin:0 auto;
+    width:100%;
+    flex-wrap:wrap;
+  }
+  .btn{
+    flex:1;
+    min-width:120px;
+    padding:18px 12px;
+    font-size:17px;
+    font-weight:700;
+    border:none;
+    border-radius:14px;
+    cursor:pointer;
+    font-family:inherit;
+  }
+  .btn-reveal{background:var(--accent);color:#fff;}
+  .btn-next{background:var(--accent-soft);color:var(--accent);}
+  .btn-mic{
+    background:var(--mic);
+    color:#fff;
+    flex-basis:100%;
+    order:-1;
+  }
+  .btn-mic.live{
+    background:var(--mic-live);
+    animation:pulse 1.1s ease-in-out infinite;
+  }
+  @keyframes pulse{
+    0%,100%{opacity:1;}
+    50%{opacity:.72;}
+  }
+  .btn:active{transform:translateY(1px);}
+  .env-note{
+    display:none;
+    max-width:600px;
+    margin:0 auto 8px;
+    padding:0 20px;
+    font-size:12px;
+    color:var(--muted);
+    text-align:center;
+    line-height:1.5;
+  }
+  .env-note.show{display:block;}
+  .loading{
+    text-align:center;
+    color:var(--muted);
+    font-size:15px;
+    padding:40px 20px;
+  }
+  @media (max-width:480px){
+    .ja{font-size:20px;}
+    .en{font-size:20px;}
+  }
+</style>
+</head>
+<body>
+  <header>
+    <div class="title">英語音読トレーナー</div>
+    <div class="counter" id="counter"></div>
+  </header>
+
+  <div class="filters" id="filters"></div>
+
+  <main>
+    <div class="card">
+      <div class="loading" id="loading">例文を読み込んでいます…</div>
+      <div id="cardBody" style="display:none;">
+        <span class="tag" id="tag"></span>
+        <div class="ja" id="ja"></div>
+        <div class="answer-zone">
+          <div class="en" id="en"></div>
+          <div class="hint" id="hint">英語を思い出してから「答えを見る」</div>
+        </div>
+        <div class="heard-zone" id="heardZone">
+          <div class="heard-label">認識された音声</div>
+          <div class="heard-text" id="heardText"></div>
+          <div class="score" id="score"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div class="env-note" id="envNote"></div>
+
+  <div class="controls" id="controls" style="display:none;">
+    <button class="btn btn-mic" id="mic">🎤 話す</button>
+    <button class="btn btn-reveal" id="reveal">答えを見る</button>
+    <button class="btn btn-next" id="next">次へ</button>
+  </div>
+
+<script>
+/* =======================================================================
+   設定: ここにGASの「ウェブアプリURL」を貼ってください(末尾が /exec のもの)
+   例: var GAS_API_URL = "https://script.google.com/macros/s/AKfy..../exec";
+   ======================================================================= */
+var GAS_API_URL = "ここにGASのexec URLを貼る";
+
+
+var TAG_CLASS = {"仕事":"work","エンジニアリング":"eng","日常会話":"daily"};
+
+var DATA = [];
+var currentFilter = "すべて";
+var deck = [];
+var idx = 0;
+
+var el = {
+  filters: document.getElementById("filters"),
+  tag: document.getElementById("tag"),
+  ja: document.getElementById("ja"),
+  en: document.getElementById("en"),
+  hint: document.getElementById("hint"),
+  counter: document.getElementById("counter"),
+  reveal: document.getElementById("reveal"),
+  next: document.getElementById("next"),
+  mic: document.getElementById("mic"),
+  heardZone: document.getElementById("heardZone"),
+  heardText: document.getElementById("heardText"),
+  score: document.getElementById("score"),
+  envNote: document.getElementById("envNote"),
+  loading: document.getElementById("loading"),
+  cardBody: document.getElementById("cardBody"),
+  controls: document.getElementById("controls"),
+};
+
+// === 音声認識のセットアップ(使える環境だけ有効化) ===
+var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+var isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) ||
+  (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+var speechAvailable = !!SR && !isIOS;
+
+var recog = null;
+var listening = false;
+
+if (speechAvailable) {
+  recog = new SR();
+  recog.lang = "en-US";
+  recog.interimResults = false;
+  recog.continuous = false;
+
+  var finalText = "";
+  var lastError = "";
+  recog.onstart = function(){ finalText = ""; lastError = ""; };
+  recog.onresult = function(e){
+    for (var i=e.resultIndex; i<e.results.length; i++){
+      if (e.results[i].isFinal){
+        finalText += e.results[i][0].transcript;
+      }
+    }
+  };
+  recog.onend = function(){
+    stopMic();
+    if (lastError){
+      el.heardZone.classList.add("show");
+      el.heardText.textContent = "";
+      el.score.className = "score ng";
+      if (lastError === "not-allowed" || lastError === "service-not-allowed"){
+        el.score.innerHTML = "マイクが許可されていません。アドレスバーのマイク設定を「許可」にしてお試しください。";
+      } else if (lastError === "no-speech"){
+        el.score.textContent = "音声を検出できませんでした。もう一度お試しください。";
+      } else if (lastError === "audio-capture"){
+        el.score.textContent = "マイクが見つかりません。接続を確認してください。";
+      } else if (lastError === "aborted"){
+        el.heardZone.classList.remove("show");
+      } else {
+        el.score.textContent = "認識に失敗しました (" + lastError + ")。もう一度お試しください。";
+      }
+      return;
+    }
+    showHeard(finalText.trim());
+  };
+  recog.onerror = function(e){
+    lastError = e.error || "unknown";
+  };
+}
+
+function normalize(s){
+  return s.toLowerCase()
+    .replace(/[.,!?;:"'\u2019]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function escapeHtml(s){
+  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+function showHeard(heard){
+  el.heardZone.classList.add("show");
+  var target = deck[idx].en;
+  var targetWords = normalize(target).split(" ").filter(Boolean);
+  var heardWords = normalize(heard).split(" ").filter(Boolean);
+  var heardSet = {};
+  heardWords.forEach(function(w){ heardSet[w] = true; });
+
+  var hitCount = 0;
+  var marked = targetWords.map(function(w){
+    if (heardSet[w]){ hitCount++; return '<span class="w-hit">'+escapeHtml(w)+'</span>'; }
+    return '<span class="w-miss">'+escapeHtml(w)+'</span>';
+  }).join(" ");
+
+  el.heardText.innerHTML = heard ? escapeHtml(heard) : "(認識できませんでした)";
+  var rate = targetWords.length ? Math.round(hitCount/targetWords.length*100) : 0;
+
+  if (rate >= 80){
+    el.score.textContent = "一致率 " + rate + "%  よく通じています";
+    el.score.className = "score ok";
+  } else {
+    el.score.textContent = "一致率 " + rate + "%  もう一度練習しましょう";
+    el.score.className = "score ng";
+  }
+  el.en.innerHTML = marked;
+  el.en.classList.add("show");
+  el.hint.style.display = "none";
+}
+
+function startMic(){
+  if (!recog || listening) return;
+  el.heardText.textContent = "";
+  el.score.textContent = "";
+  try {
+    recog.start();
+    listening = true;
+    el.mic.classList.add("live");
+    el.mic.textContent = "● 認識中… 話し終わったら押す";
+  } catch(err){}
+}
+function stopMic(){
+  listening = false;
+  el.mic.classList.remove("live");
+  el.mic.textContent = "🎤 話す";
+  try { if(recog) recog.stop(); } catch(err){}
+}
+
+function buildFilters(){
+  var cats = ["すべて"];
+  DATA.forEach(function(d){ if(cats.indexOf(d.cat)<0) cats.push(d.cat); });
+  el.filters.innerHTML = "";
+  cats.forEach(function(cat){
+    var c = document.createElement("div");
+    c.className = "chip" + (cat===currentFilter ? " active" : "");
+    c.textContent = cat;
+    c.onclick = function(){ currentFilter = cat; rebuildDeck(); };
+    el.filters.appendChild(c);
+  });
+}
+
+function rebuildDeck(){
+  deck = currentFilter==="すべて" ? DATA.slice() : DATA.filter(function(d){ return d.cat===currentFilter; });
+  idx = 0;
+  buildFilters();
+  render();
+}
+
+function render(){
+  if(deck.length===0) return;
+  stopMic();
+  var item = deck[idx];
+  el.tag.textContent = item.cat;
+  el.tag.className = "tag " + (TAG_CLASS[item.cat] || "other");
+  el.ja.textContent = item.ja;
+  el.en.textContent = item.en;
+  el.en.classList.remove("show");
+  el.hint.style.display = "block";
+  el.heardZone.classList.remove("show");
+  el.heardText.textContent = "";
+  el.score.textContent = "";
+  el.counter.textContent = (idx+1) + " / " + deck.length;
+}
+
+el.reveal.onclick = function(){
+  el.en.textContent = deck[idx].en;
+  el.en.classList.add("show");
+  el.hint.style.display = "none";
+};
+el.next.onclick = function(){
+  idx = (idx+1) % deck.length;
+  render();
+};
+el.mic.onclick = function(){ listening ? stopMic() : startMic(); };
+
+// === 起動: GASのJSONP APIから例文を取得 ===
+function onPhrasesLoaded(phrases){
+  if (phrases && phrases.error){
+    el.loading.textContent = "読み込みエラー: " + phrases.error;
+    return;
+  }
+  if (!phrases || phrases.length === 0){
+    el.loading.textContent = "例文が見つかりませんでした。スプレッドシートを確認してください。";
+    return;
+  }
+  DATA = phrases;
+  el.loading.style.display = "none";
+  el.cardBody.style.display = "block";
+  el.controls.style.display = "flex";
+
+  if (!speechAvailable){
+    el.mic.style.display = "none";
+    el.envNote.classList.add("show");
+    el.envNote.textContent =
+      "この端末では音声認識が使えないため、発音チェックはGoogle Meetの字幕をご利用ください。クイズ機能はそのまま使えます。";
+  }
+  rebuildDeck();
+}
+
+function loadPhrases(){
+  if (GAS_API_URL.indexOf("http") !== 0){
+    el.loading.textContent = "設定が必要です: index.html の GAS_API_URL にGASのURLを貼ってください。";
+    return;
+  }
+  // JSONP: <script>タグでGASを読み込み、onPhrasesLoadedが呼ばれる
+  var s = document.createElement("script");
+  var sep = GAS_API_URL.indexOf("?") >= 0 ? "&" : "?";
+  s.src = GAS_API_URL + sep + "callback=onPhrasesLoaded";
+  s.onerror = function(){
+    el.loading.textContent = "APIに接続できませんでした。GASのURLとデプロイ設定を確認してください。";
+  };
+  document.body.appendChild(s);
+}
+
+loadPhrases();
+</script>
+</body>
+</html>
