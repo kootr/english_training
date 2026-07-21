@@ -11,7 +11,7 @@
     --card:#ffffff;
     --line:#dfd9cc;
     --accent:#2f7d6b;
-    --accent-soft:#e4efe9;
+    --accent-soft:#8ec9b8;
     --tag-work:#2f6f8f;
     --tag-eng:#8a5a2f;
     --tag-daily:#7a5a8f;
@@ -151,7 +151,7 @@
   .score.ok{color:var(--hit);}
   .score.ng{color:var(--miss);}
   .controls{
-    padding:14px 20px 24px;
+    padding:14px 20px 50px;
     display:flex;
     gap:12px;
     max-width:600px;
@@ -204,6 +204,25 @@
     font-size:15px;
     padding:40px 20px;
   }
+  .live-caption{
+    position:fixed;
+    bottom:0;
+    left:0;
+    right:0;
+    padding:12px 20px;
+    background:rgba(28,43,45,.82);
+    color:#fff;
+    font-size:17px;
+    font-weight:500;
+    line-height:1.5;
+    text-align:center;
+    min-height:48px;
+    display:none;
+    backdrop-filter:blur(6px);
+    -webkit-backdrop-filter:blur(6px);
+  }
+  .live-caption.show{display:block;}
+  .live-caption .interim{opacity:.55;}
   @media (max-width:480px){
     .ja{font-size:20px;}
     .en{font-size:20px;}
@@ -238,20 +257,16 @@
   </main>
 
   <div class="env-note" id="envNote"></div>
+  <div class="live-caption" id="liveCaption"></div>
 
   <div class="controls" id="controls" style="display:none;">
     <button class="btn btn-mic" id="mic">🎤 話す</button>
     <button class="btn btn-reveal" id="reveal">答えを見る</button>
-    <button class="btn btn-next" id="next">次へ</button>
   </div>
 
 <script>
-/* =======================================================================
-   設定: ここにGASの「ウェブアプリURL」を貼ってください(末尾が /exec のもの)
-   例: var GAS_API_URL = "https://script.google.com/macros/s/AKfy..../exec";
-   ======================================================================= */
-var GAS_API_URL = "https://script.google.com/macros/s/AKfycbxTQsjejNTSn4VUCMiMsZGenCrrpvGPeThqAEwRzYUvB1FI3sn3IE-zL3E0BJ7l1DGl/exec";
 
+var GAS_API_URL = "https://script.google.com/macros/s/AKfycbxTQsjejNTSn4VUCMiMsZGenCrrpvGPeThqAEwRzYUvB1FI3sn3IE-zL3E0BJ7l1DGl/exec";
 
 var TAG_CLASS = {"仕事":"work","エンジニアリング":"eng","日常会話":"daily"};
 
@@ -268,7 +283,6 @@ var el = {
   hint: document.getElementById("hint"),
   counter: document.getElementById("counter"),
   reveal: document.getElementById("reveal"),
-  next: document.getElementById("next"),
   mic: document.getElementById("mic"),
   heardZone: document.getElementById("heardZone"),
   heardText: document.getElementById("heardText"),
@@ -277,6 +291,7 @@ var el = {
   loading: document.getElementById("loading"),
   cardBody: document.getElementById("cardBody"),
   controls: document.getElementById("controls"),
+  liveCaption: document.getElementById("liveCaption"),
 };
 
 // === 音声認識のセットアップ(使える環境だけ有効化) ===
@@ -287,24 +302,34 @@ var speechAvailable = !!SR && !isIOS;
 
 var recog = null;
 var listening = false;
+var pendingMarked = null;
 
 if (speechAvailable) {
   recog = new SR();
   recog.lang = "en-US";
-  recog.interimResults = false;
-  recog.continuous = false;
+  recog.interimResults = true;
+  recog.continuous = true;
 
   var finalText = "";
   var lastError = "";
-  recog.onstart = function(){ finalText = ""; lastError = ""; };
+  recog.onstart = function(){ finalText = ""; lastError = ""; pendingMarked = null; el.liveCaption.innerHTML = ""; el.liveCaption.classList.add("show"); };
   recog.onresult = function(e){
+    var interimText = "";
     for (var i=e.resultIndex; i<e.results.length; i++){
       if (e.results[i].isFinal){
         finalText += e.results[i][0].transcript;
+      } else {
+        interimText += e.results[i][0].transcript;
       }
     }
+    el.liveCaption.innerHTML = escapeHtml(finalText) + (interimText ? '<span class="interim"> ' + escapeHtml(interimText) + '</span>' : "");
   };
   recog.onend = function(){
+    if (lastError === "no-speech"){
+      lastError = "";
+      try { recog.start(); } catch(err){ stopMic(); }
+      return;
+    }
     stopMic();
     if (lastError){
       el.heardZone.classList.add("show");
@@ -312,8 +337,6 @@ if (speechAvailable) {
       el.score.className = "score ng";
       if (lastError === "not-allowed" || lastError === "service-not-allowed"){
         el.score.innerHTML = "マイクが許可されていません。アドレスバーのマイク設定を「許可」にしてお試しください。";
-      } else if (lastError === "no-speech"){
-        el.score.textContent = "音声を検出できませんでした。もう一度お試しください。";
       } else if (lastError === "audio-capture"){
         el.score.textContent = "マイクが見つかりません。接続を確認してください。";
       } else if (lastError === "aborted"){
@@ -365,9 +388,9 @@ function showHeard(heard){
     el.score.textContent = "一致率 " + rate + "%  もう一度練習しましょう";
     el.score.className = "score ng";
   }
-  el.en.innerHTML = marked;
-  el.en.classList.add("show");
-  el.hint.style.display = "none";
+
+  pendingMarked = marked;
+  el.mic.textContent = "🎤 もう一度話す";
 }
 
 function startMic(){
@@ -385,6 +408,8 @@ function stopMic(){
   listening = false;
   el.mic.classList.remove("live");
   el.mic.textContent = "🎤 話す";
+  el.liveCaption.classList.remove("show");
+  el.liveCaption.innerHTML = "";
   try { if(recog) recog.stop(); } catch(err){}
 }
 
@@ -411,6 +436,7 @@ function rebuildDeck(){
 function render(){
   if(deck.length===0) return;
   stopMic();
+  pendingMarked = null;
   var item = deck[idx];
   el.tag.textContent = item.cat;
   el.tag.className = "tag " + (TAG_CLASS[item.cat] || "other");
@@ -422,18 +448,38 @@ function render(){
   el.heardText.textContent = "";
   el.score.textContent = "";
   el.counter.textContent = (idx+1) + " / " + deck.length;
+  el.reveal.textContent = "答えを見る";
+  el.reveal.classList.remove("btn-next");
+  el.reveal.classList.add("btn-reveal");
 }
 
 el.reveal.onclick = function(){
-  el.en.textContent = deck[idx].en;
-  el.en.classList.add("show");
-  el.hint.style.display = "none";
+  if (el.reveal.textContent === "次へ") {
+    idx = (idx+1) % deck.length;
+    render();
+  } else {
+    el.en.textContent = deck[idx].en;
+    el.en.classList.add("show");
+    el.hint.style.display = "none";
+    el.reveal.textContent = "次へ";
+    el.reveal.classList.remove("btn-reveal");
+    el.reveal.classList.add("btn-next");
+  }
 };
-el.next.onclick = function(){
-  idx = (idx+1) % deck.length;
-  render();
+
+el.mic.onclick = function(){
+  if (listening) {
+    stopMic();
+  } else if (pendingMarked !== null) {
+    el.en.innerHTML = pendingMarked;
+    el.en.classList.add("show");
+    el.hint.style.display = "none";
+    pendingMarked = null;
+    startMic();
+  } else {
+    startMic();
+  }
 };
-el.mic.onclick = function(){ listening ? stopMic() : startMic(); };
 
 // === 起動: GASのJSONP APIから例文を取得 ===
 function onPhrasesLoaded(phrases){
