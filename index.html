@@ -143,6 +143,7 @@
   }
   .heard-text .w-hit{color:var(--hit);font-weight:700;}
   .heard-text .w-miss{color:var(--miss);text-decoration:underline dotted;}
+  .heard-text .interim{opacity:.55;}
   .score{
     margin-top:14px;
     font-size:15px;
@@ -204,25 +205,6 @@
     font-size:15px;
     padding:40px 20px;
   }
-  .live-caption{
-    position:fixed;
-    bottom:0;
-    left:0;
-    right:0;
-    padding:12px 20px;
-    background:rgba(28,43,45,.82);
-    color:#fff;
-    font-size:17px;
-    font-weight:500;
-    line-height:1.5;
-    text-align:center;
-    min-height:48px;
-    display:none;
-    backdrop-filter:blur(6px);
-    -webkit-backdrop-filter:blur(6px);
-  }
-  .live-caption.show{display:block;}
-  .live-caption .interim{opacity:.55;}
   @media (max-width:480px){
     .ja{font-size:20px;}
     .en{font-size:20px;}
@@ -257,7 +239,6 @@
   </main>
 
   <div class="env-note" id="envNote"></div>
-  <div class="live-caption" id="liveCaption"></div>
 
   <div class="controls" id="controls" style="display:none;">
     <button class="btn btn-mic" id="mic">🎤 話す</button>
@@ -291,7 +272,6 @@ var el = {
   loading: document.getElementById("loading"),
   cardBody: document.getElementById("cardBody"),
   controls: document.getElementById("controls"),
-  liveCaption: document.getElementById("liveCaption"),
 };
 
 // === 音声認識のセットアップ(使える環境だけ有効化) ===
@@ -312,7 +292,7 @@ if (speechAvailable) {
 
   var finalText = "";
   var lastError = "";
-  recog.onstart = function(){ finalText = ""; lastError = ""; pendingMarked = null; el.liveCaption.innerHTML = ""; el.liveCaption.classList.add("show"); };
+  recog.onstart = function(){ finalText = ""; lastError = ""; pendingMarked = null; el.heardZone.classList.add("show"); el.heardText.innerHTML = ""; el.score.textContent = ""; };
   recog.onresult = function(e){
     var interimText = "";
     for (var i=e.resultIndex; i<e.results.length; i++){
@@ -322,7 +302,7 @@ if (speechAvailable) {
         interimText += e.results[i][0].transcript;
       }
     }
-    el.liveCaption.innerHTML = escapeHtml(finalText) + (interimText ? '<span class="interim"> ' + escapeHtml(interimText) + '</span>' : "");
+    el.heardText.innerHTML = escapeHtml(finalText) + (interimText ? '<span class="interim"> ' + escapeHtml(interimText) + '</span>' : "");
   };
   recog.onend = function(){
     if (lastError === "no-speech"){
@@ -408,8 +388,6 @@ function stopMic(){
   listening = false;
   el.mic.classList.remove("live");
   el.mic.textContent = "🎤 話す";
-  el.liveCaption.classList.remove("show");
-  el.liveCaption.innerHTML = "";
   try { if(recog) recog.stop(); } catch(err){}
 }
 
