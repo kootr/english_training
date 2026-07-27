@@ -11,7 +11,6 @@
     --card:#ffffff;
     --line:#dfd9cc;
     --accent:#2f7d6b;
-    --accent-soft:#8ec9b8;
     --tag-work:#2f6f8f;
     --tag-eng:#8a5a2f;
     --tag-daily:#7a5a8f;
@@ -118,6 +117,18 @@
     display:none;
   }
   .en.show{display:block;}
+  .yg-link{
+    display:none;
+    margin-top:14px;
+    font-size:14px;
+    font-weight:600;
+    color:var(--accent);
+    text-decoration:none;
+    border:1px solid var(--line);
+    border-radius:999px;
+    padding:8px 16px;
+  }
+  .yg-link.show{display:inline-block;}
   .hint{
     font-size:14px;
     color:var(--muted);
@@ -172,7 +183,6 @@
     font-family:inherit;
   }
   .btn-reveal{background:var(--accent);color:#fff;}
-  .btn-next{background:var(--accent-soft);color:var(--accent);}
   .btn-mic{
     background:var(--mic);
     color:#fff;
@@ -229,6 +239,7 @@
           <div class="en" id="en"></div>
           <div class="hint" id="hint">英語を思い出してから「答えを見る」</div>
         </div>
+        <a class="yg-link" id="ygLink" target="_blank" rel="noopener noreferrer">🔊 YouGlishで発音を聞く</a>
         <div class="heard-zone" id="heardZone">
           <div class="heard-label">認識された音声</div>
           <div class="heard-text" id="heardText"></div>
@@ -264,6 +275,7 @@ var el = {
   hint: document.getElementById("hint"),
   counter: document.getElementById("counter"),
   reveal: document.getElementById("reveal"),
+  ygLink: document.getElementById("ygLink"),
   mic: document.getElementById("mic"),
   heardZone: document.getElementById("heardZone"),
   heardText: document.getElementById("heardText"),
@@ -282,7 +294,6 @@ var speechAvailable = !!SR && !isIOS;
 
 var recog = null;
 var listening = false;
-var pendingMarked = null;
 
 if (speechAvailable) {
   recog = new SR();
@@ -292,7 +303,7 @@ if (speechAvailable) {
 
   var finalText = "";
   var lastError = "";
-  recog.onstart = function(){ finalText = ""; lastError = ""; pendingMarked = null; el.heardZone.classList.add("show"); el.heardText.innerHTML = ""; el.score.textContent = ""; };
+  recog.onstart = function(){ finalText = ""; lastError = ""; el.heardZone.classList.add("show"); el.heardText.innerHTML = ""; el.score.textContent = ""; };
   recog.onresult = function(e){
     var interimText = "";
     for (var i=e.resultIndex; i<e.results.length; i++){
@@ -369,7 +380,13 @@ function showHeard(heard){
     el.score.className = "score ng";
   }
 
-  pendingMarked = marked;
+  // 話し終わったら答え(お手本)を表示。通じた単語=緑、通じなかった単語=赤。
+  el.en.innerHTML = marked;
+  el.en.classList.add("show");
+  el.hint.style.display = "none";
+  el.reveal.textContent = "次へ";
+  showYouGlish();
+
   el.mic.textContent = "🎤 もう一度話す";
 }
 
@@ -411,24 +428,33 @@ function rebuildDeck(){
   render();
 }
 
+// 答えを表示するとき、YouGlish列にURLがあればリンクを出す
+function showYouGlish(){
+  var url = deck[idx] && deck[idx].yg ? deck[idx].yg : "";
+  if (url.indexOf("http") === 0){
+    el.ygLink.href = url;
+    el.ygLink.classList.add("show");
+  } else {
+    el.ygLink.classList.remove("show");
+  }
+}
+
 function render(){
   if(deck.length===0) return;
   stopMic();
-  pendingMarked = null;
   var item = deck[idx];
   el.tag.textContent = item.cat;
   el.tag.className = "tag " + (TAG_CLASS[item.cat] || "other");
   el.ja.textContent = item.ja;
   el.en.textContent = item.en;
   el.en.classList.remove("show");
+  el.ygLink.classList.remove("show");
   el.hint.style.display = "block";
   el.heardZone.classList.remove("show");
   el.heardText.textContent = "";
   el.score.textContent = "";
   el.counter.textContent = (idx+1) + " / " + deck.length;
   el.reveal.textContent = "答えを見る";
-  el.reveal.classList.remove("btn-next");
-  el.reveal.classList.add("btn-reveal");
 }
 
 el.reveal.onclick = function(){
@@ -440,20 +466,13 @@ el.reveal.onclick = function(){
     el.en.classList.add("show");
     el.hint.style.display = "none";
     el.reveal.textContent = "次へ";
-    el.reveal.classList.remove("btn-reveal");
-    el.reveal.classList.add("btn-next");
+    showYouGlish();
   }
 };
 
 el.mic.onclick = function(){
   if (listening) {
     stopMic();
-  } else if (pendingMarked !== null) {
-    el.en.innerHTML = pendingMarked;
-    el.en.classList.add("show");
-    el.hint.style.display = "none";
-    pendingMarked = null;
-    startMic();
   } else {
     startMic();
   }

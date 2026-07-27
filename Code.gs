@@ -6,7 +6,7 @@
  * こうするとGASのiframeの外で画面が動くので、音声認識(マイク)が使えます。
  *
  * --- スプレッドシートの想定フォーマット (1行目は見出し) ---
- *   A列: category   B列: english   C列: japanese
+ *   A列: category   B列: english   C列: japanese   D列: youglish (URL)
  */
 
 var SHEET_NAME = '例文集';
@@ -56,8 +56,9 @@ function getPhrases() {
     var category = String(values[i][0]).trim();
     var english  = String(values[i][1]).trim();
     var japanese = String(values[i][2]).trim();
+    var youglish = String(values[i][3]).trim();
     if (english === '' || japanese === '') continue;
-    phrases.push({ cat: category || 'その他', en: english, ja: japanese });
+    phrases.push({ cat: category || 'その他', en: english, ja: japanese, yg: youglish });
   }
 
   return phrases;
