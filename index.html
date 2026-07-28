@@ -134,12 +134,11 @@
     color:var(--muted);
   }
   .heard-zone{
-    display:none;
+    display:block;
     margin-top:20px;
     padding-top:18px;
     border-top:1px dashed var(--line);
   }
-  .heard-zone.show{display:block;}
   .heard-label{
     font-size:12px;
     color:var(--muted);
@@ -239,7 +238,7 @@
           <div class="en" id="en"></div>
           <div class="hint" id="hint">英語を思い出してから「答えを見る」</div>
         </div>
-        <a class="yg-link" id="ygLink" target="_blank" rel="noopener noreferrer">🔊 YouGlishで発音を聞く</a>
+        <a class="yg-link" id="ygLink" target="_blank" rel="noopener noreferrer">🗣 ️YouGlishで発音を聞く</a>
         <div class="heard-zone" id="heardZone">
           <div class="heard-label">認識された音声</div>
           <div class="heard-text" id="heardText"></div>
@@ -258,7 +257,7 @@
 
 <script>
 
-var GAS_API_URL = "https://script.google.com/macros/s/AKfycbxTQsjejNTSn4VUCMiMsZGenCrrpvGPeThqAEwRzYUvB1FI3sn3IE-zL3E0BJ7l1DGl/exec";
+var GAS_API_URL = "https://script.google.com/macros/s/AKfycbydtsiIHnsr7ilK3aIs0vdz_qCQSKtDKz7TqkQt28oZmnZ89nAS0-JEGwxAo_agQfRG/exec";
 
 var TAG_CLASS = {"仕事":"work","エンジニアリング":"eng","日常会話":"daily"};
 
@@ -303,7 +302,7 @@ if (speechAvailable) {
 
   var finalText = "";
   var lastError = "";
-  recog.onstart = function(){ finalText = ""; lastError = ""; el.heardZone.classList.add("show"); el.heardText.innerHTML = ""; el.score.textContent = ""; };
+  recog.onstart = function(){ finalText = ""; lastError = ""; el.heardText.innerHTML = ""; el.score.textContent = ""; };
   recog.onresult = function(e){
     var interimText = "";
     for (var i=e.resultIndex; i<e.results.length; i++){
@@ -323,7 +322,6 @@ if (speechAvailable) {
     }
     stopMic();
     if (lastError){
-      el.heardZone.classList.add("show");
       el.heardText.textContent = "";
       el.score.className = "score ng";
       if (lastError === "not-allowed" || lastError === "service-not-allowed"){
@@ -331,7 +329,7 @@ if (speechAvailable) {
       } else if (lastError === "audio-capture"){
         el.score.textContent = "マイクが見つかりません。接続を確認してください。";
       } else if (lastError === "aborted"){
-        el.heardZone.classList.remove("show");
+        el.score.textContent = "";
       } else {
         el.score.textContent = "認識に失敗しました (" + lastError + ")。もう一度お試しください。";
       }
@@ -356,12 +354,13 @@ function escapeHtml(s){
 }
 
 function showHeard(heard){
-  el.heardZone.classList.add("show");
   var target = deck[idx].en;
   var targetWords = normalize(target).split(" ").filter(Boolean);
   var heardWords = normalize(heard).split(" ").filter(Boolean);
   var heardSet = {};
   heardWords.forEach(function(w){ heardSet[w] = true; });
+  var targetSet = {};
+  targetWords.forEach(function(w){ targetSet[w] = true; });
 
   var hitCount = 0;
   var marked = targetWords.map(function(w){
@@ -369,7 +368,13 @@ function showHeard(heard){
     return '<span class="w-miss">'+escapeHtml(w)+'</span>';
   }).join(" ");
 
-  el.heardText.innerHTML = heard ? escapeHtml(heard) : "(認識できませんでした)";
+  // 自分が話した言葉のうち、お手本に含まれる単語=緑。それ以外はそのまま。
+  var heardMarked = heard.split(/\s+/).filter(Boolean).map(function(tok){
+    var n = normalize(tok);
+    if (n && targetSet[n]){ return '<span class="w-hit">'+escapeHtml(tok)+'</span>'; }
+    return escapeHtml(tok);
+  }).join(" ");
+  el.heardText.innerHTML = heard ? heardMarked : "(認識できませんでした)";
   var rate = targetWords.length ? Math.round(hitCount/targetWords.length*100) : 0;
 
   if (rate >= 80){
@@ -450,7 +455,6 @@ function render(){
   el.en.classList.remove("show");
   el.ygLink.classList.remove("show");
   el.hint.style.display = "block";
-  el.heardZone.classList.remove("show");
   el.heardText.textContent = "";
   el.score.textContent = "";
   el.counter.textContent = (idx+1) + " / " + deck.length;
